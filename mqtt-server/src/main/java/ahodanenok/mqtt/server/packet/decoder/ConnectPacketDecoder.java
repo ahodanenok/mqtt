@@ -1,0 +1,146 @@
+package ahodanenok.mqtt.server.packet.decoder;
+
+import java.nio.ByteBuffer;
+
+import ahodanenok.mqtt.server.QoS;
+import ahodanenok.mqtt.server.exception.InvalidPacketFormatException;
+import ahodanenok.mqtt.server.exception.UnsupportedProtocolLevelException;
+import ahodanenok.mqtt.server.packet.ConnectPacket;
+
+public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
+
+    public ConnectPacket decode(ByteBuffer buf) {
+        try {
+            return doDecode(buf);
+        } catch (Exception e) {
+            throw e; // todo: what exception to throw?
+        }
+    }
+
+    private ConnectPacket doDecode(ByteBuffer buf) {
+        ConnectPacket packet = new ConnectPacket();
+
+        int b;
+        int n;
+
+        // todo: move one level up
+        // b = buf.get();
+        // if ((b & 0xF0) != 0x10) {
+        //     throw new InvalidPacketFormatException("Expected CONNECT (0001) packet, got: " + ((b & 0xF0) >> 4));
+        // }
+        // if ((b & 0xF) != 0) {
+        //     throw new InvalidPacketFormatException("Expected flags to be 0000, got: %s" + (b & 0xF));
+        // }
+
+        // int length = DecodeUtils.decodeLength(buf);
+        // if (length < 10) {
+        //     throw new InvalidPacketFormatException("CONNECT packet length must be at least 10 bytes");
+        // }
+        // if (buf.remaining() < length) {
+        //     throw new InvalidPacketFormatException("Packet length ")
+        // }
+        // buf.limit(buf.position() + length);
+
+        // protocol name
+        DecodeUtils.expect(
+            buf,
+            (byte) 0x0,
+            (byte) 0x4,
+            (byte) 0x4D,  // M
+            (byte) 0x51,  // Q
+            (byte) 0x54,  // T
+            (byte) 0x54); // T
+
+        // protocol level
+        b = buf.get();
+        if (b != 0x4) {
+            throw new UnsupportedProtocolLevelException(b);
+        }
+
+        // boolean willPresent = false;
+        boolean usernamePresent = false;
+        boolean passwordPresent = false;
+
+        // connect flags
+        n = buf.get();
+        if ((n & 0x1) != 0) {
+            throw new InvalidPacketFormatException("Reserved flag must be 0");
+        }
+        if ((n & 0x2) != 0) {
+            packet.setCleanSession(true);
+        }
+        if ((n & 0x4) != 0) {
+            packet.setWillPresent(true);
+            packet.setWillQoS(
+                switch (n & 0x18) {
+                    case 0x0 -> QoS.AT_MOST_ONCE;
+                    case 0x8 -> QoS.AT_LEAST_ONCE;
+                    case 0x10 -> QoS.EXACTLY_ONCE;
+                    default -> throw new InvalidPacketFormatException("Invalid will QoS: 3");
+                });
+            if ((n & 0x20) != 0) {
+                packet.setWillRetain(true);
+            }
+        } else {
+            if ((n & 0x18) != 0) {
+                throw new InvalidPacketFormatException("Will Present is 0, Will QoS must be 0");
+            }
+            if ((n & 0x20) != 0) {
+                throw new InvalidPacketFormatException("Will Present is 0, Will Retain must be 0");
+            }
+        }
+        if ((n & 0x40) != 0) {
+            passwordPresent = true;
+        }
+        if ((n & 0x80) != 0) {
+            usernamePresent = true;
+        }
+        if (!usernamePresent && passwordPresent) {
+            throw new InvalidPacketFormatException("User Name Flag is 0, Password Flag must be 0");
+        }
+
+        // keep alive
+        packet.setKeepAlive(DecodeUtils.decodeLength16(buf));
+
+        // client identifier
+        // todo: auto assigned id if length is zero
+        packet.setClientIdentifier(DecodeUtils.decodeString(buf));
+        if (packet.getClientIdentifier().isEmpty()) {
+            // if (!packet.isCleanSession()) {
+            //     throw new InvalidPacketFormatException("ClientId is empty, Clean Session must be 1");
+            // }
+        }
+
+        if (packet.isWillPresent()) {
+            packet.setWillTopic(DecodeUtils.decodeString(buf));
+
+            // will message
+            n = DecodeUtils.decodeLength16(buf);
+            packet.setWillMessage(buf.slice(buf.position(), n));
+            if (packet.getWillMessage().remaining() != n) {
+                throw new InvalidPacketFormatException(
+                    "Expected %d bytes in Will Message, got %d"
+                        .formatted(n, packet.getWillMessage().remaining()));
+            }
+
+            buf.position(buf.position() + n);
+        }
+
+        if (usernamePresent) {
+            packet.setUsername(DecodeUtils.decodeString(buf));
+            if (passwordPresent) {
+                n = DecodeUtils.decodeLength16(buf);
+                packet.setPassword(buf.slice(buf.position(), n));
+                if (packet.getPassword().remaining() != n) {
+                    throw new InvalidPacketFormatException(
+                        "Expected %d bytes in Password, got %d"
+                            .formatted(n, packet.getPassword().remaining()));
+                }
+
+                buf.position(buf.position() + n);
+            }
+        }
+
+        return packet;
+    }
+}
