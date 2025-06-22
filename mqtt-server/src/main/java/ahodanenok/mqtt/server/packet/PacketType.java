@@ -4,7 +4,8 @@ public enum PacketType {
 
     CONNECT(1),
     CONNACK(2),
-    PUBLISH(3);
+    PUBLISH(3),
+    PUBACK(4);
 
     final int value;
 
