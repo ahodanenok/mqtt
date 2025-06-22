@@ -100,7 +100,7 @@ public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
         }
 
         // keep alive
-        packet.setKeepAlive(DecodeUtils.decodeLength16(buf));
+        packet.setKeepAlive(DecodeUtils.decodeInteger16(buf));
 
         // client identifier
         // todo: auto assigned id if length is zero
@@ -115,7 +115,7 @@ public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
             packet.setWillTopic(DecodeUtils.decodeString(buf));
 
             // will message
-            n = DecodeUtils.decodeLength16(buf);
+            n = DecodeUtils.decodeInteger16(buf);
             packet.setWillMessage(buf.slice(buf.position(), n));
             if (packet.getWillMessage().remaining() != n) {
                 throw new InvalidPacketFormatException(
@@ -129,7 +129,7 @@ public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
         if (usernamePresent) {
             packet.setUsername(DecodeUtils.decodeString(buf));
             if (passwordPresent) {
-                n = DecodeUtils.decodeLength16(buf);
+                n = DecodeUtils.decodeInteger16(buf);
                 packet.setPassword(buf.slice(buf.position(), n));
                 if (packet.getPassword().remaining() != n) {
                     throw new InvalidPacketFormatException(

@@ -35,7 +35,18 @@ public final class DecodeUtils {
         return length;
     }
 
-    public static int decodeLength16(ByteBuffer buf) {
+    public static int decodeVerifyPacketLength(ByteBuffer buf) {
+        int length = decodePacketLength(buf);
+        if (buf.remaining() < length) {
+            throw new InvalidPacketFormatException(
+                "Packet length of %d is greater than the number of remaining bytes %d"
+                    .formatted(length, buf.remaining()));
+        }
+
+        return length;
+    }
+
+    public static int decodeInteger16(ByteBuffer buf) {
         return ((buf.get() & 0xFF) << 8) | (buf.get() & 0xFF);
     }
 

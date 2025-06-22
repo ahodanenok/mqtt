@@ -3,15 +3,16 @@ package ahodanenok.mqtt.server.packet;
 public enum PacketType {
 
     CONNECT(1),
-    CONNACK(2);
+    CONNACK(2),
+    PUBLISH(3);
 
-    final int code;
+    final int value;
 
-    PacketType(int code) {
-        this.code = code;
+    PacketType(int value) {
+        this.value = value;
     }
 
-    public int getCode() {
-        return code;
+    public int getValue() {
+        return value;
     }
 }
