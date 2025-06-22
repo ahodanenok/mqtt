@@ -3,6 +3,7 @@ package ahodanenok.mqtt.server.packet.decoder;
 import java.nio.ByteBuffer;
 
 import ahodanenok.mqtt.server.QoS;
+import ahodanenok.mqtt.server.packet.PacketType;
 import ahodanenok.mqtt.server.exception.InvalidPacketFormatException;
 import ahodanenok.mqtt.server.exception.UnsupportedProtocolLevelException;
 import ahodanenok.mqtt.server.packet.ConnectPacket;
@@ -23,23 +24,19 @@ public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
         int b;
         int n;
 
-        // todo: move one level up
-        // b = buf.get();
-        // if ((b & 0xF0) != 0x10) {
-        //     throw new InvalidPacketFormatException("Expected CONNECT (0001) packet, got: " + ((b & 0xF0) >> 4));
-        // }
-        // if ((b & 0xF) != 0) {
-        //     throw new InvalidPacketFormatException("Expected flags to be 0000, got: %s" + (b & 0xF));
-        // }
+        b = buf.get();
+        if (((b & 0xF0) >> 4) != PacketType.CONNECT.getValue()) {
+            throw new InvalidPacketFormatException(
+                "Expected %s (%d) packet, got: %d".formatted(
+                    PacketType.CONNECT,
+                    PacketType.CONNECT.getValue(),
+                    ((b & 0xF0) >> 4)));
+        }
+        if ((b & 0xF) != 0) {
+            throw new InvalidPacketFormatException("Expected flags to be 0, got: " + (b & 0xF));
+        }
 
-        // int length = DecodeUtils.decodeLength(buf);
-        // if (length < 10) {
-        //     throw new InvalidPacketFormatException("CONNECT packet length must be at least 10 bytes");
-        // }
-        // if (buf.remaining() < length) {
-        //     throw new InvalidPacketFormatException("Packet length ")
-        // }
-        // buf.limit(buf.position() + length);
+        DecodeUtils.decodeVerifyPacketLength(buf);
 
         // protocol name
         DecodeUtils.expect(
@@ -57,42 +54,40 @@ public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
             throw new UnsupportedProtocolLevelException(b);
         }
 
-        // boolean willPresent = false;
         boolean usernamePresent = false;
         boolean passwordPresent = false;
 
         // connect flags
-        n = buf.get();
-        if ((n & 0x1) != 0) {
+        b = buf.get();
+        if ((b & 0x1) != 0) {
             throw new InvalidPacketFormatException("Reserved flag must be 0");
         }
-        if ((n & 0x2) != 0) {
+        if ((b & 0x2) != 0) {
             packet.setCleanSession(true);
         }
-        if ((n & 0x4) != 0) {
+        if ((b & 0x4) != 0) {
             packet.setWillPresent(true);
-            packet.setWillQoS(
-                switch (n & 0x18) {
-                    case 0x0 -> QoS.AT_MOST_ONCE;
-                    case 0x8 -> QoS.AT_LEAST_ONCE;
-                    case 0x10 -> QoS.EXACTLY_ONCE;
-                    default -> throw new InvalidPacketFormatException("Invalid will QoS: 3");
-                });
-            if ((n & 0x20) != 0) {
+            try {
+                packet.setWillQoS(QoS.from((b & 0x18) >> 3));
+            } catch (IllegalArgumentException e) {
+                throw new InvalidPacketFormatException(
+                    "Invalid QoS value: " + ((b & 0x18) >> 3));
+            }
+            if ((b & 0x20) != 0) {
                 packet.setWillRetain(true);
             }
         } else {
-            if ((n & 0x18) != 0) {
+            if ((b & 0x18) != 0) {
                 throw new InvalidPacketFormatException("Will Present is 0, Will QoS must be 0");
             }
-            if ((n & 0x20) != 0) {
+            if ((b & 0x20) != 0) {
                 throw new InvalidPacketFormatException("Will Present is 0, Will Retain must be 0");
             }
         }
-        if ((n & 0x40) != 0) {
+        if ((b & 0x40) != 0) {
             passwordPresent = true;
         }
-        if ((n & 0x80) != 0) {
+        if ((b & 0x80) != 0) {
             usernamePresent = true;
         }
         if (!usernamePresent && passwordPresent) {

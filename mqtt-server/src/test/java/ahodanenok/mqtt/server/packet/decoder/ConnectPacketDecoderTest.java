@@ -16,6 +16,8 @@ public class ConnectPacketDecoderTest {
     public void testDecode_Valid_AllFieldsPresent() {
         ConnectPacketDecoder decoder = new ConnectPacketDecoder();
         ConnectPacket packet = decoder.decode(TestUtils.buf(
+            0x10,
+            0x23,
             0x00, 0x04, 0x4D, 0x51, 0x54, 0x54, // protocol name
             0x04, // protocol level
             0xEE, // connect flags
