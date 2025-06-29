@@ -5,22 +5,25 @@ import java.nio.charset.StandardCharsets;
 
 import ahodanenok.mqtt.server.exception.InvalidPacketFormatException;
 import ahodanenok.mqtt.server.packet.MqttPacket;
+import ahodanenok.mqtt.server.packet.PacketLength;
 
 public final class DecodeUtils {
 
-    public static int decodePacketLength(ByteBuffer buf) {
+    public static PacketLength decodePacketLength(ByteBuffer buf) {
         int length = 0;
         int offset = 0;
         byte b;
 
         if (!buf.hasRemaining()) {
-            throw new InvalidPacketFormatException("Expected packet length, but the buffer is empty");
+            //throw new InvalidPacketFormatException("Expected packet length, but the buffer is empty");
+            return null;
         }
 
         do {
             b = buf.get();
             if (b < 0 && !buf.hasRemaining()) {
-                throw new InvalidPacketFormatException("Expected more length bytes, but the buffer has no more bytes");
+                //throw new InvalidPacketFormatException("Expected more length bytes, but the buffer has no more bytes");
+                return null;
             }
 
             length |= (b & 0x7F) << offset;
@@ -32,18 +35,22 @@ public final class DecodeUtils {
             // todo: check and throw if the offset > 21?
         } while (b < 0);
 
-        return length;
+        return new PacketLength(length, offset / 7);
     }
 
     public static int decodeVerifyPacketLength(ByteBuffer buf) {
-        int length = decodePacketLength(buf);
-        if (buf.remaining() < length) {
+        PacketLength length = decodePacketLength(buf);
+        if (length == null) {
+            throw new InvalidPacketFormatException("Expected packet length");
+        }
+
+        if (buf.remaining() < length.getValue()) {
             throw new InvalidPacketFormatException(
                 "Packet length of %d is greater than the number of remaining bytes %d"
                     .formatted(length, buf.remaining()));
         }
 
-        return length;
+        return length.getValue();
     }
 
     public static int decodeInteger16(ByteBuffer buf) {

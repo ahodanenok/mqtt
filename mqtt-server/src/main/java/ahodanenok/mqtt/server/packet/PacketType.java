@@ -8,6 +8,16 @@ public enum PacketType {
     PUBACK(4),
     DISCONNECT(14);
 
+    public static PacketType from(int value) {
+        for (PacketType type : values()) {
+            if (type.value == value) {
+                return type;
+            }
+        }
+
+        throw new IllegalArgumentException("Unknown packet type value: " + value);
+    }
+
     final int value;
 
     PacketType(int value) {
