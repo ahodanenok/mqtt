@@ -39,14 +39,10 @@ public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
         DecodeUtils.decodeVerifyPacketLength(buf);
 
         // protocol name
-        DecodeUtils.expect(
-            buf,
-            (byte) 0x0,
-            (byte) 0x4,
-            (byte) 0x4D,  // M
-            (byte) 0x51,  // Q
-            (byte) 0x54,  // T
-            (byte) 0x54); // T
+        String protocolName = DecodeUtils.decodeString(buf);
+        if (!protocolName.equals("MQTT")) {
+            throw new InvalidPacketFormatException("Incorrect protocol name: " + protocolName);
+        }
 
         // protocol level
         b = buf.get();
