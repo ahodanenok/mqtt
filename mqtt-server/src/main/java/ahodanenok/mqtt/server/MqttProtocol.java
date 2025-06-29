@@ -10,6 +10,7 @@ import ahodanenok.mqtt.server.packet.MqttPacket;
 public class MqttProtocol {
 
     private final ClientConnection connection;
+    private boolean connected;
 
     public MqttProtocol(ClientConnection connection) {
         this.connection = connection;
@@ -37,8 +38,14 @@ public class MqttProtocol {
         System.out.println("!!!   username=" + packet.getUsername());
         System.out.println("!!!   password=" + packet.getPassword());
 
+        if (connected) {
+            connection.close();
+            return;
+        }
+
         Client client = new Client();
         client.setConnection(connection);
+        connected = true;
 
         ConnackPacket response = new ConnackPacket();
         response.setReturnCode(ReturnCode.ACCEPTED);

@@ -25,4 +25,8 @@ public class ClientConnection {
         outputBuf.flip();
         connection.send(outputBuf);
     }
+
+    public void close() {
+        connection.close();
+    }
 }
