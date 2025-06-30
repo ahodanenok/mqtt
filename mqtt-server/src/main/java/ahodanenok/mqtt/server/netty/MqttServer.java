@@ -9,8 +9,10 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
+import ahodanenok.mqtt.server.ClientManager;
 import ahodanenok.mqtt.server.packet.decoder.PacketDecoders;
 import ahodanenok.mqtt.server.packet.encoder.PacketEncoders;
+import ahodanenok.mqtt.server.session.SessionManager;
 
 public final class MqttServer {
 
@@ -19,6 +21,8 @@ public final class MqttServer {
     }
 
     public void run() throws Exception {
+        ClientManager clientManager = new ClientManager();
+        SessionManager sessionManager = new SessionManager();
         PacketDecoders packetDecoders = new PacketDecoders();
         PacketEncoders packetEncoders = new PacketEncoders();
 
@@ -32,7 +36,11 @@ public final class MqttServer {
                     @Override
                     public void initChannel(SocketChannel channel) throws Exception {
                         channel.pipeline().addLast(
-                            new MqttServerHandler(packetDecoders, packetEncoders));
+                            new MqttServerHandler(
+                                clientManager,
+                                sessionManager,
+                                packetDecoders,
+                                packetEncoders));
                     }
                 })
                 .option(ChannelOption.SO_BACKLOG, 128)

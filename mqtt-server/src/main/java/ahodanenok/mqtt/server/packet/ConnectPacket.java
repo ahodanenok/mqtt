@@ -6,6 +6,7 @@ import ahodanenok.mqtt.server.QoS;
 
 public final class ConnectPacket extends MqttPacket {
 
+    private int protocolLevel;
     private int keepAlive;
     private boolean willPresent;
     private boolean willRetain;
@@ -19,6 +20,14 @@ public final class ConnectPacket extends MqttPacket {
 
     public ConnectPacket() {
         super(PacketType.CONNECT);
+    }
+
+    public void setProtocolLevel(int protocolLevel) {
+        this.protocolLevel = protocolLevel;
+    }
+
+    public int getProtocolLevel() {
+        return protocolLevel;
     }
 
     public void setKeepAlive(int n) {

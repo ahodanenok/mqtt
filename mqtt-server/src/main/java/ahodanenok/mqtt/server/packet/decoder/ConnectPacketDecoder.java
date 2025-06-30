@@ -44,11 +44,7 @@ public class ConnectPacketDecoder implements PacketDecoder<ConnectPacket> {
             throw new InvalidPacketFormatException("Incorrect protocol name: " + protocolName);
         }
 
-        // protocol level
-        b = buf.get();
-        if (b != 0x4) {
-            throw new UnsupportedProtocolLevelException(b);
-        }
+        packet.setProtocolLevel(buf.get());
 
         boolean usernamePresent = false;
         boolean passwordPresent = false;

@@ -7,24 +7,33 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import ahodanenok.mqtt.server.ClientConnection;
+import ahodanenok.mqtt.server.ClientManager;
 import ahodanenok.mqtt.server.MqttProtocol;
 import ahodanenok.mqtt.server.packet.PacketLength;
 import ahodanenok.mqtt.server.packet.decoder.DecodeUtils;
 import ahodanenok.mqtt.server.packet.decoder.PacketDecoders;
 import ahodanenok.mqtt.server.packet.encoder.PacketEncoders;
+import ahodanenok.mqtt.server.session.SessionManager;
 
 public class MqttServerHandler extends ChannelInboundHandlerAdapter {
 
+    private final ClientManager clientManager;
+    private final SessionManager sessionManager;
     private final PacketDecoders packetDecoders;
     private final PacketEncoders packetEncoders;
+
     private MqttProtocol protocol;
     private PacketLength packetLength;
     // todo: adjust buffer size dynamically
     private ByteBuffer inputBuf = ByteBuffer.allocate(128);
 
     public MqttServerHandler(
+            ClientManager clientManager,
+            SessionManager sessionManager,
             PacketDecoders packetDecoders,
             PacketEncoders packetEncoders) {
+        this.clientManager = clientManager;
+        this.sessionManager = sessionManager;
         this.packetDecoders = packetDecoders;
         this.packetEncoders = packetEncoders;
     }
@@ -33,7 +42,7 @@ public class MqttServerHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) {
         ClientConnection clientConnection =
             new ClientConnection(new NettyDataConnection(ctx), packetEncoders);
-        protocol = new MqttProtocol(clientConnection);
+        protocol = new MqttProtocol(clientManager, sessionManager, clientConnection);
     }
 
     @Override

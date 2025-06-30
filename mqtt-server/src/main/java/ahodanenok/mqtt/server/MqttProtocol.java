@@ -1,18 +1,30 @@
 package ahodanenok.mqtt.server;
 
+import java.util.UUID;
+
 import ahodanenok.mqtt.server.packet.ConnackPacket;
 import ahodanenok.mqtt.server.packet.ConnectPacket;
 import ahodanenok.mqtt.server.packet.DisconnectPacket;
 import ahodanenok.mqtt.server.packet.PacketType;
 import ahodanenok.mqtt.server.packet.PublishPacket;
 import ahodanenok.mqtt.server.packet.MqttPacket;
+import ahodanenok.mqtt.server.session.Session;
+import ahodanenok.mqtt.server.session.SessionManager;
 
 public class MqttProtocol {
 
-    private final ClientConnection connection;
+    private final ClientManager clientManager;
+    private final SessionManager sessionManager;
+    private ClientConnection connection;
+    private Client client;
     private boolean connected;
 
-    public MqttProtocol(ClientConnection connection) {
+    public MqttProtocol(
+            ClientManager clientManager,
+            SessionManager sessionManager,
+            ClientConnection connection) {
+        this.clientManager = clientManager;
+        this.sessionManager = sessionManager;
         this.connection = connection;
     }
 
@@ -43,14 +55,54 @@ public class MqttProtocol {
             return;
         }
 
-        Client client = new Client();
+        if (packet.getProtocolLevel() != 4) {
+            ConnackPacket response = new ConnackPacket();
+            response.setReturnCode(ReturnCode.UNACCEPTABLE_PROTOCOL_VERSION);
+            connection.send(response);
+            connection.close();
+            return;
+        }
+
+        // 2. The Server MUST validate that the CONNECT Packet conforms to section 3.1 and close the Network Connection without sending a CONNACK if it does not conform [MQTT-3.1.4-1].
+        String clientIdentifier = packet.getClientIdentifier();
+        if (clientIdentifier.isEmpty()) {
+            if (!packet.isCleanSession()) {
+                ConnackPacket response = new ConnackPacket();
+                response.setReturnCode(ReturnCode.IDENTIFIER_REJECTED);
+                connection.send(response);
+                connection.close();
+                return;
+            }
+
+            clientIdentifier = UUID.randomUUID().toString();
+        }
+
+        // 3. The Server MAY check that the contents of the CONNECT Packet meet any further restrictions and MAY perform authentication and authorization checks.
+        // todo: additional actions
+
+        // If validation is successful the Server performs the following steps.
+        // 1. If the ClientId represents a Client already connected to the Server then the Server MUST disconnect the existing Client [MQTT-3.1.4-2].
+        Client existingClient = clientManager.getClient(clientIdentifier);
+        if (existingClient != null) {
+            existingClient.getConnection().close();
+        }
+        // 2. The Server MUST perform the processing of CleanSession that is described in section 3.1.2.4
+        if (packet.isCleanSession()) {
+            sessionManager.cleanSession(clientIdentifier);
+        }
+        Session session = sessionManager.getSession(clientIdentifier);
+
+        client = new Client();
         client.setConnection(connection);
         connected = true;
-
+        // 3. The Server MUST acknowledge the CONNECT Packet with a CONNACK Packet containing a zero return code [MQTT-3.1.4-4].
         ConnackPacket response = new ConnackPacket();
         response.setReturnCode(ReturnCode.ACCEPTED);
-        response.setSessionPresent(false);
+        response.setSessionPresent(!packet.isCleanSession() && !session.isNew());
         client.getConnection().send(response);
+
+        // 4. Start message delivery and keep alive monitoring.
+        // todo: impl
     }
 
     private void onDisconnect(DisconnectPacket packet) {
@@ -65,5 +117,17 @@ public class MqttProtocol {
         System.out.println("!!!   topicName=" + packet.getTopicName());
         System.out.println("!!!   packetId=" + packet.getPacketIdentifier());
         System.out.println("!!!   payload=" + packet.getPayload());
+    }
+
+    private void disconnect() {
+        if (client != null) {
+            // todo: remove session on disconnect when isCleanSession=1
+            client = null;
+        }
+
+        if (connection != null) {
+            connection.close();
+            connection = null;
+        }
     }
 }
