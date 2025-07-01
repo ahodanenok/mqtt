@@ -1,5 +1,6 @@
 package ahodanenok.mqtt.server;
 
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientManager {
@@ -9,6 +10,10 @@ public class ClientManager {
 
     public void registerClient(String clientIdentifier, Client client) {
 
+    }
+
+    public Collection<Client> listClients() {
+        return clients.values();
     }
 
     public Client getClient(String clientIdentifier) {

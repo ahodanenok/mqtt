@@ -1,5 +1,6 @@
 package ahodanenok.mqtt.server;
 
+import java.nio.ByteBuffer;
 import java.util.UUID;
 
 import ahodanenok.mqtt.server.packet.ConnackPacket;
@@ -10,6 +11,7 @@ import ahodanenok.mqtt.server.packet.PublishPacket;
 import ahodanenok.mqtt.server.packet.MqttPacket;
 import ahodanenok.mqtt.server.session.Session;
 import ahodanenok.mqtt.server.session.SessionManager;
+import ahodanenok.mqtt.server.session.Subscription;
 
 public class MqttProtocol {
 
@@ -92,7 +94,7 @@ public class MqttProtocol {
         }
         Session session = sessionManager.getSession(clientIdentifier);
 
-        client = new Client();
+        client = new Client(clientIdentifier);
         client.setConnection(connection);
         connected = true;
         // 3. The Server MUST acknowledge the CONNECT Packet with a CONNACK Packet containing a zero return code [MQTT-3.1.4-4].
@@ -117,6 +119,26 @@ public class MqttProtocol {
         System.out.println("!!!   topicName=" + packet.getTopicName());
         System.out.println("!!!   packetId=" + packet.getPacketIdentifier());
         System.out.println("!!!   payload=" + packet.getPayload());
+
+        // The DUP flag MUST be set to 0 for all QoS 0 messages [MQTT-3.3.1-2].
+        if (packet.isDuplicated() && packet.getQoS() == QoS.AT_MOST_ONCE) {
+            disconnect();
+            return;
+        }
+
+        // todo: The Topic Name in the PUBLISH Packet MUST NOT contain wildcard characters [MQTT-3.3.2-2].
+        switch (packet.getQoS()) {
+            case AT_MOST_ONCE -> {
+                deliverMessage(packet.getTopicName(), packet.getPayload());
+                // expected response: none
+            }
+            case AT_LEAST_ONCE -> {
+                // PubackPacket response = new PubackPacket();
+                // response.setPacketIdentifier(packet.getPacketIdentifier());
+                // connection.send(response);
+            }
+            case EXACTLY_ONCE -> { } // todo: send pubrec packet
+        }
     }
 
     private void disconnect() {
@@ -128,6 +150,24 @@ public class MqttProtocol {
         if (connection != null) {
             connection.close();
             connection = null;
+        }
+    }
+
+    private void deliverMessage(String topicName, ByteBuffer message) {
+        for (Client client : clientManager.listClients()) {
+            Session session = sessionManager.getSession(client.getId());
+            for (Subscription sub : session.getSubscriptions()) {
+                if (sub.getTopicPattern().equals(topicName)) {
+                    PublishPacket packet = new PublishPacket();
+                    packet.setDuplicated(false);
+                    packet.setQoS(QoS.AT_MOST_ONCE);
+                    packet.setRetain(false);
+                    packet.setTopicName(topicName);
+                    packet.setPacketIdentifier(0);
+                    packet.setPayload(message);
+                    client.getConnection().send(packet);
+                }
+            }
         }
     }
 }
