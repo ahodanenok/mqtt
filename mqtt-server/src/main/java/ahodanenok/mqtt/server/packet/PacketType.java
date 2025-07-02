@@ -6,6 +6,7 @@ public enum PacketType {
     CONNACK(2),
     PUBLISH(3),
     PUBACK(4),
+    SUBSCRIBE(8),
     DISCONNECT(14);
 
     public static PacketType from(int value) {
