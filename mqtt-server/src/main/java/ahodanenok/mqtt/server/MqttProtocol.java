@@ -7,6 +7,8 @@ import ahodanenok.mqtt.server.packet.ConnackPacket;
 import ahodanenok.mqtt.server.packet.ConnectPacket;
 import ahodanenok.mqtt.server.packet.DisconnectPacket;
 import ahodanenok.mqtt.server.packet.PacketType;
+import ahodanenok.mqtt.server.packet.SubscribePacket;
+import ahodanenok.mqtt.server.packet.SubackPacket;
 import ahodanenok.mqtt.server.packet.PublishPacket;
 import ahodanenok.mqtt.server.packet.MqttPacket;
 import ahodanenok.mqtt.server.session.Session;
@@ -34,6 +36,7 @@ public class MqttProtocol {
         switch (packet.getType()) {
             case CONNECT -> onConnect((ConnectPacket) packet);
             case PUBLISH -> onPublish((PublishPacket) packet);
+            case SUBSCRIBE -> onSubscribe((SubscribePacket) packet);
             case DISCONNECT -> onDisconnect((DisconnectPacket) packet);
             default -> throw new IllegalStateException();
         }
@@ -92,7 +95,9 @@ public class MqttProtocol {
         if (packet.isCleanSession()) {
             sessionManager.cleanSession(clientIdentifier);
         }
-        Session session = sessionManager.getSession(clientIdentifier);
+        SessionManager.InitSessionResult initSession =
+            sessionManager.initSession(clientIdentifier);
+        Session session = initSession.getSession();
 
         client = new Client(clientIdentifier);
         client.setConnection(connection);
@@ -100,7 +105,7 @@ public class MqttProtocol {
         // 3. The Server MUST acknowledge the CONNECT Packet with a CONNACK Packet containing a zero return code [MQTT-3.1.4-4].
         ConnackPacket response = new ConnackPacket();
         response.setReturnCode(ReturnCode.ACCEPTED);
-        response.setSessionPresent(!packet.isCleanSession() && !session.isNew());
+        response.setSessionPresent(!packet.isCleanSession() && !initSession.isNew());
         client.getConnection().send(response);
 
         // 4. Start message delivery and keep alive monitoring.
@@ -141,6 +146,37 @@ public class MqttProtocol {
         }
     }
 
+    private void onSubscribe(SubscribePacket packet) {
+        System.out.println("!!! SubscribePacket");
+        System.out.println("!!!   packetIdentifier=" + packet.getPacketIdentifier());
+        for (SubscribePacket.Subscription sub : packet.getSubscriptions()) {
+            System.out.println("!!!   topicFilter=%s, reqQoS=%s".formatted(sub.getTopicFilter(), sub.getRequestedQoS()));
+        }
+
+        // The payload of a SUBSCRIBE packet MUST contain at least one Topic Filter / QoS pair.
+        // A SUBSCRIBE packet with no payload is a protocol violation [MQTT-3.8.3-3]
+        if (packet.getSubscriptions().isEmpty()) {
+            disconnect();
+            return;
+        }
+
+        SubackPacket response = new SubackPacket();
+        response.setPacketIdentifier(packet.getPacketIdentifier());
+
+        Session session = sessionManager.getSession(client.getId());
+        for (SubscribePacket.Subscription subscription : packet.getSubscriptions()) {
+            session.getSubscriptions().add(new Subscription(
+                subscription.getTopicFilter(), subscription.getRequestedQoS()));
+            response.getReturnCodes().add(switch (subscription.getRequestedQoS()) {
+                case AT_MOST_ONCE -> SubackPacket.ReturnCode.QOS_AT_MOST_ONCE;
+                case AT_LEAST_ONCE -> SubackPacket.ReturnCode.QOS_AT_LEAST_ONCE;
+                case EXACTLY_ONCE -> SubackPacket.ReturnCode.QOS_EXACTLY_ONCE;
+            });
+        }
+
+        connection.send(response);
+    }
+
     private void disconnect() {
         if (client != null) {
             // todo: remove session on disconnect when isCleanSession=1
@@ -156,8 +192,8 @@ public class MqttProtocol {
     private void deliverMessage(String topicName, ByteBuffer message) {
         for (Client client : clientManager.listClients()) {
             Session session = sessionManager.getSession(client.getId());
-            for (Subscription sub : session.getSubscriptions()) {
-                if (sub.getTopicPattern().equals(topicName)) {
+            for (Subscription subscription : session.getSubscriptions()) {
+                if (subscription.getTopicFilter().equals(topicName)) {
                     PublishPacket packet = new PublishPacket();
                     packet.setDuplicated(false);
                     packet.setQoS(QoS.AT_MOST_ONCE);

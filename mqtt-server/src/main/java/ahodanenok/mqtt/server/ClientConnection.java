@@ -20,7 +20,7 @@ public class ClientConnection {
     }
 
     public void send(MqttPacket packet) {
-        outputBuf.rewind();
+        outputBuf.clear();
         packetEncoders.encode(packet, outputBuf);
         outputBuf.flip();
         connection.send(outputBuf);

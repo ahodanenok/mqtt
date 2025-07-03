@@ -15,7 +15,7 @@ public class SubackPacketEncoderTest {
     public void testEncode_OneReturnCode() {
         SubackPacket packet = new SubackPacket();
         packet.setPacketIdentifier(123);
-        packet.setReturnCodes(List.of(SubackPacket.ReturnCode.QOS_AT_LEAST_ONCE));
+        packet.getReturnCodes().addAll(List.of(SubackPacket.ReturnCode.QOS_AT_LEAST_ONCE));
         ByteBuffer buf = ByteBuffer.allocate(5);
         new SubackPacketEncoder().encode(packet, buf);
 
@@ -31,7 +31,7 @@ public class SubackPacketEncoderTest {
     public void testEncode_MultipleReturnCode() {
         SubackPacket packet = new SubackPacket();
         packet.setPacketIdentifier(456);
-        packet.setReturnCodes(List.of(
+        packet.getReturnCodes().addAll(List.of(
             SubackPacket.ReturnCode.QOS_AT_LEAST_ONCE,
             SubackPacket.ReturnCode.QOS_AT_MOST_ONCE,
             SubackPacket.ReturnCode.FAILURE,

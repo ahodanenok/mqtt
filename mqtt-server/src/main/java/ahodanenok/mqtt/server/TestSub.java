@@ -32,7 +32,7 @@ public class TestSub {
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1_1);
             connOpts.setCleanSession(true);
-            connOpts.setKeepAliveInterval(1);
+            connOpts.setKeepAliveInterval(5);
             // connOpts.setUserName("admin");
             // connOpts.setPassword(new char[] { 'p', 'w', 'd' });
             // connOpts.setWill("will_topic", new byte[] { (byte) 10, (byte) 20 }, 1, true);

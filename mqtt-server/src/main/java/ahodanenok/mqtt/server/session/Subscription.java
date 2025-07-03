@@ -1,14 +1,22 @@
 package ahodanenok.mqtt.server.session;
 
+import ahodanenok.mqtt.server.QoS;
+
 public final class Subscription {
 
-    public String topicPattern;
+    private final String topicFilter;
+    private final QoS maxQoS;
 
-    public Subscription(String topicPattern) {
-        this.topicPattern = topicPattern;
+    public Subscription(String topicFilter, QoS maxQoS) {
+        this.topicFilter = topicFilter;
+        this.maxQoS = maxQoS;
     }
 
-    public String getTopicPattern() {
-        return topicPattern;
+    public String getTopicFilter() {
+        return topicFilter;
+    }
+
+    public QoS getMaxQos() {
+        return maxQoS;
     }
 }

@@ -1,5 +1,6 @@
 package ahodanenok.mqtt.server.packet;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class SubackPacket extends MqttPacket {
@@ -23,7 +24,7 @@ public final class SubackPacket extends MqttPacket {
     }
 
     private int packetIdentifier;
-    private List<ReturnCode> returnCodes;
+    private List<ReturnCode> returnCodes = new ArrayList<>();
 
     public SubackPacket() {
         super(PacketType.SUBACK);
@@ -39,9 +40,5 @@ public final class SubackPacket extends MqttPacket {
 
     public List<ReturnCode> getReturnCodes() {
         return returnCodes;
-    }
-
-    public void setReturnCodes(List<ReturnCode> returnCodes) {
-        this.returnCodes = returnCodes;
     }
 }
