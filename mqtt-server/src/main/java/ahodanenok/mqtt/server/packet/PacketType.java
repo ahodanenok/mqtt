@@ -9,6 +9,7 @@ public enum PacketType {
     SUBSCRIBE(8),
     SUBACK(9),
     PINGREQ(12),
+    PINGRESP(13),
     DISCONNECT(14);
 
     public static PacketType from(int value) {
