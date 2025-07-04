@@ -9,6 +9,8 @@ import ahodanenok.mqtt.server.packet.DisconnectPacket;
 import ahodanenok.mqtt.server.packet.PacketType;
 import ahodanenok.mqtt.server.packet.SubscribePacket;
 import ahodanenok.mqtt.server.packet.SubackPacket;
+import ahodanenok.mqtt.server.packet.PingreqPacket;
+import ahodanenok.mqtt.server.packet.PingrespPacket;
 import ahodanenok.mqtt.server.packet.PublishPacket;
 import ahodanenok.mqtt.server.packet.MqttPacket;
 import ahodanenok.mqtt.server.session.Session;
@@ -38,6 +40,7 @@ public class MqttProtocol {
             case PUBLISH -> onPublish((PublishPacket) packet);
             case SUBSCRIBE -> onSubscribe((SubscribePacket) packet);
             case DISCONNECT -> onDisconnect((DisconnectPacket) packet);
+            case PINGREQ -> onPingreq((PingreqPacket) packet);
             default -> throw new IllegalStateException();
         }
     }
@@ -175,6 +178,10 @@ public class MqttProtocol {
         }
 
         connection.send(response);
+    }
+
+    private void onPingreq(PingreqPacket packet) {
+        connection.send(new PingrespPacket());
     }
 
     private void disconnect() {
